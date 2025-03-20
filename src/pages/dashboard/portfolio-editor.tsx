@@ -4,7 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Download, Github, Save, Sparkles, Eye } from "lucide-react";
@@ -115,14 +121,74 @@ export default function PortfolioEditorPage() {
     alert("Portfolio saved successfully!");
   };
 
-  const handleDownload = () => {
-    // In a real app, this would generate and download a ZIP file
-    alert("Portfolio downloaded as ZIP!");
+  const handleDownload = async () => {
+    try {
+      // Import the portfolio generator dynamically to reduce initial load time
+      const { generatePortfolioZip } = await import(
+        "@/lib/portfolio-generator"
+      );
+
+      // Get the selected template (in a real app, this would come from the database)
+      const template = {
+        id: 1,
+        name: "Modern Developer",
+        style: "modern",
+      };
+
+      // Generate and download the ZIP file
+      await generatePortfolioZip(portfolio, template);
+
+      // Record the download in analytics (in a real app)
+      // await recordDownload(portfolio.id, user.id);
+    } catch (error) {
+      console.error("Error downloading portfolio:", error);
+      alert("Failed to download portfolio. Please try again.");
+    }
   };
 
-  const handleAISuggestions = () => {
-    // In a real app, this would call an AI service for suggestions
-    alert("AI suggestions feature would be implemented here!");
+  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  const handleAISuggestions = async () => {
+    try {
+      setIsLoadingAI(true);
+      // Import the AI service dynamically to reduce initial load time
+      const { getAISuggestions } = await import("@/lib/ai-service");
+
+      // Get AI suggestions for the portfolio
+      const suggestions = await getAISuggestions(portfolio);
+      setAiSuggestions(suggestions);
+    } catch (error) {
+      console.error("Error getting AI suggestions:", error);
+      alert("Failed to get AI suggestions. Please try again.");
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
+
+  const applyAISuggestion = (type: string, data: any) => {
+    if (type === "bio") {
+      setPortfolio({
+        ...portfolio,
+        personal: {
+          ...portfolio.personal,
+          bio: data,
+        },
+      });
+    } else if (type === "projects") {
+      setPortfolio({
+        ...portfolio,
+        projects: data,
+      });
+    } else if (type === "skills") {
+      setPortfolio({
+        ...portfolio,
+        skills: [...portfolio.skills, ...data],
+      });
+    }
+
+    // Clear suggestions after applying
+    setAiSuggestions(null);
   };
 
   const handleGithubImport = () => {
@@ -148,9 +214,14 @@ export default function PortfolioEditorPage() {
             <Eye className="h-4 w-4 mr-2" />
             {previewMode ? "Edit Mode" : "Preview"}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleAISuggestions}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAISuggestions}
+            disabled={isLoadingAI}
+          >
             <Sparkles className="h-4 w-4 mr-2" />
-            AI Suggestions
+            {isLoadingAI ? "Loading..." : "AI Suggestions"}
           </Button>
           <Button variant="outline" size="sm" onClick={handleSave}>
             <Save className="h-4 w-4 mr-2" />
@@ -162,6 +233,94 @@ export default function PortfolioEditorPage() {
           </Button>
         </div>
       </div>
+
+      {aiSuggestions && (
+        <Card className="mb-6 border-primary/50">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Sparkles className="h-5 w-5 mr-2 text-primary" />
+              AI Suggestions
+            </CardTitle>
+            <CardDescription>
+              Here are some AI-generated suggestions to improve your portfolio
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {aiSuggestions.bioSuggestion && (
+              <div className="space-y-2 border-b pb-4">
+                <h3 className="font-medium">Improved Bio</h3>
+                <p className="text-sm text-muted-foreground">
+                  {aiSuggestions.bioSuggestion}
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    applyAISuggestion("bio", aiSuggestions.bioSuggestion)
+                  }
+                >
+                  Apply Suggestion
+                </Button>
+              </div>
+            )}
+
+            {aiSuggestions.projectSuggestions &&
+              aiSuggestions.projectSuggestions.length > 0 && (
+                <div className="space-y-2 border-b pb-4">
+                  <h3 className="font-medium">Improved Project Descriptions</h3>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    {aiSuggestions.projectSuggestions.map(
+                      (project: any, index: number) => (
+                        <li key={index} className="space-y-1">
+                          <p className="font-medium">{project.title}</p>
+                          <p>{project.description}</p>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      applyAISuggestion(
+                        "projects",
+                        aiSuggestions.projectSuggestions,
+                      )
+                    }
+                  >
+                    Apply All Project Suggestions
+                  </Button>
+                </div>
+              )}
+
+            {aiSuggestions.skillSuggestions &&
+              aiSuggestions.skillSuggestions.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-medium">Suggested Additional Skills</h3>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    {aiSuggestions.skillSuggestions.map(
+                      (skill: any, index: number) => (
+                        <li key={index} className="flex justify-between">
+                          <span>{skill.name}</span>
+                          <span>{skill.level}%</span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      applyAISuggestion(
+                        "skills",
+                        aiSuggestions.skillSuggestions,
+                      )
+                    }
+                  >
+                    Add Suggested Skills
+                  </Button>
+                </div>
+              )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Editor Panel */}

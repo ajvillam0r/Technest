@@ -195,14 +195,29 @@ function TemplateCard({ template }: { template: TemplateProps }) {
               Preview
             </Button>
           </Link>
-          <Link
-            to={`/dashboard/create-portfolio?template=${template.id}`}
-            className="flex-1"
-          >
-            <Button className="w-full">
-              {template.isPremium ? "Purchase" : "Use Template"}
-            </Button>
-          </Link>
+          {template.isPremium ? (
+            <Link
+              to={`/payment/checkout`}
+              state={{
+                template: {
+                  id: template.id,
+                  name: template.name,
+                  price: 19.99,
+                  description: template.description,
+                },
+              }}
+              className="flex-1"
+            >
+              <Button className="w-full">Purchase</Button>
+            </Link>
+          ) : (
+            <Link
+              to={`/dashboard/create-portfolio?template=${template.id}`}
+              className="flex-1"
+            >
+              <Button className="w-full">Use Template</Button>
+            </Link>
+          )}
         </div>
       </CardFooter>
     </Card>
